@@ -24,9 +24,9 @@ class ACRPN(Optimizer):
                  params: List[Tensor],
                  alpha: float,
                  eps: float = 1e-2,
-                 sigma: float = 1e-3,
-                 timesteps: int = 100,
-                 eta: float = 1e-3,
+                 sigma: float = 1e-6,
+                 timesteps: int = 10,
+                 eta: float = 1e-4,
                  maximize: bool = False):
 
         if alpha < 0.0:
@@ -187,9 +187,9 @@ def acrpn(params: List[Tensor],
     # Takes in a vector `v` and calculates the Hessian-vector product
     hvp_func = lambda v: _estimate_hvp(params, v, l1, uJp=uJp, u=u, grad_estimates=grad_estimates)
 
-    delta, val = cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta)
+    delta, delta_j = cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta)
 
-    if val > -1 / 100 * math.sqrt(eps ** 3 / alpha):
+    if delta_j > -1 / 100 * math.sqrt(eps ** 3 / alpha):
         delta = cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta=delta)
 
     # Update params
@@ -240,6 +240,7 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     grad_norm = _compute_norm(grad_estimates_detached)
 
     if grad_norm > 1 / alpha:
+        # Take Cauchy-Step
         beta = _compute_dot_product(grad_estimates_detached, hvp_func(grad_estimates_detached))
         beta /= alpha * grad_norm * grad_norm
         R_c = -beta + math.sqrt(beta * beta + 2 * grad_norm / alpha)
@@ -248,12 +249,18 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
         # print(R_c, R_c / grad_norm, (alpha * beta) ** 2)
 
     else:
-        # print('here')
-        delta = list(torch.zeros_like(g_detach) for g_detach in grad_estimates_detached)
         perturb = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
         perturb_norm = _compute_norm(perturb) + 1e-9
 
-        grad_noise = list(g_detach + sigma * per_ / perturb_norm for g_detach, per_ in zip(grad_estimates_detached, perturb))
+        grad_noise = list(g_detach + sigma * grad_norm * per_ / perturb_norm for g_detach, per_ in zip(grad_estimates_detached, perturb))
+        grad_noise_norm = _compute_norm(grad_noise)
+
+        # Take Cauchy-Step with noisy gradient
+        beta = _compute_dot_product(grad_noise, hvp_func(grad_noise))
+        beta /= alpha * grad_noise_norm * grad_noise_norm
+
+        R_c = -beta + math.sqrt(beta * beta + 2 * grad_noise_norm / alpha)
+        delta = list(-R_c * g_noise / grad_noise_norm for g_noise in grad_noise)
 
         for j in range(timesteps):
             hvp_delta = hvp_func(delta)
@@ -265,18 +272,17 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     hvp_delta = hvp_func(delta)
     norm_delta = _compute_norm(delta)
 
-    val = torch.tensor(0., device=grad_estimates_detached[0].device)
+    delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
     for i, p in enumerate(params):
-        val += (grad_estimates_detached[i] * delta[i]).sum() + 1 / 2 * (
+        delta_j += (grad_estimates_detached[i] * delta[i]).sum() + 1 / 2 * (
                 delta[i] * hvp_delta[i]).sum() + alpha / 6 * norm_delta ** 3
 
-    return delta, val
+    return delta, delta_j
 
 
 # @calculate_time
 def cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta):
-    # Start from cauchy point
-    # delta = delta
+    # Start from cauchy point: delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
     for _ in range(timesteps):
         for i, p in enumerate(params):
