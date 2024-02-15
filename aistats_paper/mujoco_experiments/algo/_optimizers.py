@@ -148,9 +148,12 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     hvp_delta = hvp_func(delta)
     norm_delta = _compute_norm(delta)
 
-    delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
-    for i, g_i in enumerate(grad_estimates_detached):
-        delta_j += (g_i * delta[i]).sum() + 0.5 * (delta[i] * hvp_delta[i]).sum() + alpha / 6 * norm_delta ** 3
+    # delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
+    # for i, g_i in enumerate(grad_estimates_detached):
+    #     delta_j += (g_i * delta[i]).sum() + 0.5 * (delta[i] * hvp_delta[i]).sum() + alpha / 6 * norm_delta ** 3
+
+    delta_j = (_compute_dot_product(grad_estimates_detached, delta) + 0.5 * _compute_dot_product(delta, hvp_delta)
+               + alpha / 6 * norm_delta ** 3)
 
     return delta, delta_j
 
