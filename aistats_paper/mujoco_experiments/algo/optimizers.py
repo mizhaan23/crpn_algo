@@ -26,7 +26,7 @@ class ACRPN(Optimizer):
                  eps: float = 1e-2,
                  sigma: float = 1e-6,
                  timesteps: int = 10,
-                 eta: float = 1e-4,
+                 eta: float = 1e-3,
                  maximize: bool = False):
 
         if alpha < 0.0:
@@ -193,6 +193,7 @@ def acrpn(params: List[Tensor],
         delta = cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta=delta)
 
     # Update params
+    # print(_compute_norm(delta))
     with torch.no_grad():
         for i, param in enumerate(params):
             param.add_(delta[i], alpha=1.)
@@ -233,12 +234,12 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     Delta  <-  - R_c g / ||g||
 
     ** Gradient Descent **
-     TODO
+     TODO: Finish description
 
     """
 
     grad_norm = _compute_norm(grad_estimates_detached)
-
+    print(grad_norm)
     if grad_norm > 1 / alpha:
         # Take Cauchy-Step
         beta = _compute_dot_product(grad_estimates_detached, hvp_func(grad_estimates_detached))
@@ -249,18 +250,21 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
         # print(R_c, R_c / grad_norm, (alpha * beta) ** 2)
 
     else:
+        print('subsolver descent reached')
         perturb = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
         perturb_norm = _compute_norm(perturb) + 1e-9
 
-        grad_noise = list(g_detach + sigma * grad_norm * per_ / perturb_norm for g_detach, per_ in zip(grad_estimates_detached, perturb))
-        grad_noise_norm = _compute_norm(grad_noise)
-
-        # Take Cauchy-Step with noisy gradient
-        beta = _compute_dot_product(grad_noise, hvp_func(grad_noise))
-        beta /= alpha * grad_noise_norm * grad_noise_norm
-
-        R_c = -beta + math.sqrt(beta * beta + 2 * grad_noise_norm / alpha)
-        delta = list(-R_c * g_noise / grad_noise_norm for g_noise in grad_noise)
+        grad_noise = list(g_detach + sigma * grad_norm * per_ / perturb_norm for g_detach, per_ in
+                          zip(grad_estimates_detached, perturb))
+        # grad_noise_norm = _compute_norm(grad_noise)
+        #
+        # # Take Cauchy-Step with noisy gradient
+        # beta = _compute_dot_product(grad_noise, hvp_func(grad_noise))
+        # beta /= alpha * grad_noise_norm * grad_noise_norm
+        #
+        # R_c = -beta + math.sqrt(beta * beta + 2 * grad_noise_norm / alpha)
+        # delta = list(-R_c * g_noise / grad_noise_norm for g_noise in grad_noise)
+        delta = list(torch.zeros_like(g_detach) for g_detach in grad_estimates_detached)
 
         for j in range(timesteps):
             hvp_delta = hvp_func(delta)
@@ -272,16 +276,20 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     hvp_delta = hvp_func(delta)
     norm_delta = _compute_norm(delta)
 
-    delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
-    for i, p in enumerate(params):
-        delta_j += (grad_estimates_detached[i] * delta[i]).sum() + 1 / 2 * (
-                delta[i] * hvp_delta[i]).sum() + alpha / 6 * norm_delta ** 3
+    # delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
+    # for i, p in enumerate(params):
+    #     delta_j += (grad_estimates_detached[i] * delta[i]).sum() + 1 / 2 * (
+    #             delta[i] * hvp_delta[i]).sum()
+    # delta_j += alpha / 6 * norm_delta ** 3
 
+    delta_j = (_compute_dot_product(grad_estimates_detached, delta) + 0.5 * _compute_dot_product(delta, hvp_delta)
+               + alpha / 6 * norm_delta ** 3)
     return delta, delta_j
 
 
 # @calculate_time
 def cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta):
+    print('finalsolver reached')
     # Start from cauchy point: delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
     for _ in range(timesteps):
@@ -320,7 +328,7 @@ def _estimate_hvp(params, v, l1, uJp, u, grad_estimates):
 # @torch.jit.script
 def _compute_dot_product(a: List[Optional[torch.Tensor]], b: List[Optional[torch.Tensor]]) -> float:
     # assert len(a) == len(b)
-    return torch.tensor([(a_.detach() * b_.detach()).sum() for a_, b_ in zip(a, b)]).sum().item()
+    return torch.tensor([(a_.detach() * b_.detach()).sum() for a_, b_ in zip(a, b)]).sum()
 
 
 # @torch.jit.script
