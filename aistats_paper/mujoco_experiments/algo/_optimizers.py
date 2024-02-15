@@ -68,7 +68,6 @@ class ACRPN(Optimizer):
         return loss
 
 
-# @torch.jit.script
 def acrpn(params: List[Tensor],
           l1: Tensor,
           l2: Tensor,
@@ -78,28 +77,27 @@ def acrpn(params: List[Tensor],
           timesteps: int,
           eta: float):
 
-    grad_estimates: List[Tensor] = torch.autograd.grad(l1.mean(), params, create_graph=True)
+    grad_estimates = torch.autograd.grad(l1.mean(), params, create_graph=True)
     grad_estimates_detached = list(g.detach() for g in grad_estimates)
 
     # pre-compute vector-Jacobian product to calculate forward Jacobian-vector product in `_estimate_hvp()`
-    u: List[Tensor] = [torch.ones_like(l2, requires_grad=True)]
-    uJp: List[Tensor] = torch.autograd.grad(l2, params, grad_outputs=u, create_graph=True)
+    u = [torch.ones_like(l2, requires_grad=True)]
+    uJp = torch.autograd.grad(l2, params, grad_outputs=u, create_graph=True)
 
     # Takes in a vector `v` and calculates the Hessian-vector product
     hvp_func = lambda v: _estimate_hvp(params, v, l1, uJp=uJp, u=u, grad_estimates=grad_estimates)
 
-    delta, delta_j = cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta)
+    delta, delta_j = cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta)
 
     if delta_j > -1 / 100 * math.sqrt(eps ** 3 / alpha):
-        delta = cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta=delta)
+        delta = cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta=delta)
 
     # Update params
     with torch.no_grad():
         torch._foreach_add_(params, delta)
 
 
-# @calculate_time
-def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta):
+def cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta):
     """
     Implementation of the cubic-subsolver regime as described in Algorithm 2 of Tripuraneni et. al.
 
@@ -108,7 +106,7 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     Delta  <-  - R_c g / ||g||
 
     ** Gradient Descent **
-     TODO
+     TODO: Finish description
 
     """
 
@@ -120,9 +118,8 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
         beta /= alpha * grad_norm * grad_norm
         R_c = -beta + math.sqrt(beta * beta + 2 * grad_norm / alpha)
 
-        # delta = list(-R_c * g_detached for g_detached in grad_estimates_detached)
+        # Cauchy point
         delta = torch._foreach_mul(grad_estimates_detached, -R_c / grad_norm)
-        # print(R_c, R_c / grad_norm, (alpha * beta) ** 2)
 
     else:
         perturb = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
@@ -148,19 +145,14 @@ def cubic_subsolver(params, grad_estimates_detached, hvp_func, alpha, sigma, tim
     hvp_delta = hvp_func(delta)
     norm_delta = _compute_norm(delta)
 
-    # delta_j = torch.tensor(0., device=grad_estimates_detached[0].device)
-    # for i, g_i in enumerate(grad_estimates_detached):
-    #     delta_j += (g_i * delta[i]).sum() + 0.5 * (delta[i] * hvp_delta[i]).sum() + alpha / 6 * norm_delta ** 3
-
     delta_j = (_compute_dot_product(grad_estimates_detached, delta) + 0.5 * _compute_dot_product(delta, hvp_delta)
                + alpha / 6 * norm_delta ** 3)
 
     return delta, delta_j
 
 
-# @calculate_time
-def cubic_finalsolver(params, grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta):
-    # Start from cauchy point: delta = delta
+def cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta):
+    # Start from cauchy point, i.e. delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
     for _ in range(timesteps):
         torch._foreach_add_(delta, grad_iterate, alpha=-eta)
@@ -188,12 +180,9 @@ def _estimate_hvp(params, v, l1, uJp, u, grad_estimates):
     return hvp1
 
 
-# @torch.jit.script
 def _compute_dot_product(a: List[Optional[torch.Tensor]], b: List[Optional[torch.Tensor]]) -> float:
-    # assert len(a) == len(b)
     return torch.tensor([ab.sum() for ab in torch._foreach_mul(a, b)], device=a[0].device).sum()
 
 
-# @torch.jit.script
 def _compute_norm(a: List[Optional[torch.Tensor]]) -> float:
     return math.sqrt(torch.tensor([a2.sum() for a2 in torch._foreach_mul(a, a)], device=a[0].device).sum())
