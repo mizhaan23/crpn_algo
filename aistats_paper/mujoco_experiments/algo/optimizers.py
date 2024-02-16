@@ -1,7 +1,7 @@
 import math
 import torch
 from torch import Tensor
-from torch.optim.optimizer import Optimizer, required
+from torch.optim.optimizer import Optimizer
 from typing import Dict, List, Tuple, Optional, Callable
 import time
 from copy import deepcopy
@@ -25,7 +25,7 @@ class ACRPN(Optimizer):
                  alpha: float,
                  eps: float = 1e-2,
                  sigma: float = 1e-6,
-                 timesteps: int = 10,
+                 timesteps: int = 100,
                  eta: float = 1e-4,
                  maximize: bool = False):
 
@@ -44,7 +44,7 @@ class ACRPN(Optimizer):
             # group.setdefault('differentiable', False)
 
     # @calculate_time
-    def step(self, l1, l2, closure=None):
+    def step(self, l1, l2, closure=None):  # Todo: Try incorporating the loses under closure
 
         loss = None
         if closure is not None:
@@ -77,12 +77,12 @@ def acrpn(params: List[Tensor],
           timesteps: int,
           eta: float):
 
-    grad_estimates = torch.autograd.grad(l1.mean(), params, create_graph=True)
+    grad_estimates = list(torch.autograd.grad(l1.mean(), params, create_graph=True))
     grad_estimates_detached = list(g.detach() for g in grad_estimates)
 
     # pre-compute vector-Jacobian product to calculate forward Jacobian-vector product in `_estimate_hvp()`
     u = [torch.ones_like(l2, requires_grad=True)]
-    uJp = torch.autograd.grad(l2, params, grad_outputs=u, create_graph=True)
+    uJp = list(torch.autograd.grad(l2, params, grad_outputs=u, create_graph=True))
 
     # Takes in a vector `v` and calculates the Hessian-vector product
     hvp_func = lambda v: _estimate_hvp(params, v, l1, uJp=uJp, u=u, grad_estimates=grad_estimates)
@@ -98,7 +98,12 @@ def acrpn(params: List[Tensor],
             param.add_(delta[i], alpha=1.)
 
 
-def cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta):
+def cubic_subsolver(grad_estimates_detached: List[Tensor],
+                    hvp_func: Callable[[List[Tensor]], List[Tensor]],
+                    alpha: float,
+                    sigma: float,
+                    timesteps: int,
+                    eta: float):
     """
     Implementation of the cubic-subsolver regime as described in Algorithm 2 of Tripuraneni et. al.
 
@@ -128,6 +133,8 @@ def cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, 
 
         grad_noise = list(g_detach + sigma * grad_norm * per_ / perturb_norm for g_detach, per_ in
                           zip(grad_estimates_detached, perturb))
+
+        # Todo: Figure out whether or not to implement below commented code
         # grad_noise_norm = _compute_norm(grad_noise)
         #
         # # Take Cauchy-Step with noisy gradient
@@ -136,6 +143,7 @@ def cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, 
         #
         # R_c = -beta + math.sqrt(beta * beta + 2 * grad_noise_norm / alpha)
         # delta = list(-R_c * g_noise / grad_noise_norm for g_noise in grad_noise)
+
         delta = list(torch.zeros_like(g_detach) for g_detach in grad_estimates_detached)
 
         for j in range(timesteps):
@@ -154,7 +162,17 @@ def cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, 
     return delta, delta_j
 
 
-def cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta):
+def cubic_finalsolver(grad_estimates_detached: List[Tensor],
+                      hvp_func: Callable[[List[Tensor]], List[Tensor]],
+                      alpha: float,
+                      eps: float,
+                      timesteps: int,
+                      eta: float,
+                      delta: List[Tensor]):
+    """
+    TODO : Add description
+    """
+
     # Start from cauchy point, i.e. delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
     for _ in range(timesteps):
@@ -173,12 +191,19 @@ def cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, timesteps, 
     return delta
 
 
-def _estimate_hvp(params, v, l1, uJp, u, grad_estimates):
-    Jup = torch.autograd.grad(uJp, u, grad_outputs=v, retain_graph=True)[0]  # using fwd autodiff trick
-    hvp1 = torch.autograd.grad(l1, params, grad_outputs=Jup / len(Jup), retain_graph=True)
+def _estimate_hvp(params: List[Tensor],
+                  v: List[Tensor],
+                  l1: Tensor,
+                  uJp: List[Tensor],
+                  u: List[Tensor],
+                  grad_estimates: List[Optional[Tensor]]):
 
-    val = sum((g_ * v_).sum() for g_, v_ in zip(grad_estimates, v))
-    hvp2 = torch.autograd.grad(val, params, retain_graph=True)
+    Jup = torch.autograd.grad(uJp, u, grad_outputs=v, retain_graph=True)[0]  # using fwd autodiff trick
+    hvp1 = list(torch.autograd.grad(l1, params, grad_outputs=Jup / len(Jup), retain_graph=True))
+
+    # TODO: Try using ``_compute_dot_product`` here instead
+    gTv = sum((g_ * v_).sum() for g_, v_ in zip(grad_estimates, v))  # inner product <grad, v>
+    hvp2 = list(torch.autograd.grad(gTv, params, retain_graph=True))
 
     return list(h1 + h2 for h1, h2 in zip(hvp1, hvp2))
 
