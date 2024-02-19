@@ -198,8 +198,8 @@ def _estimate_hvp(params: List[Tensor],
                   u: List[Tensor],
                   grad_estimates: List[Optional[Tensor]]):
 
-    Jup = torch.autograd.grad(uJp, u, grad_outputs=v, retain_graph=True)[0]  # using fwd autodiff trick
-    hvp1 = list(torch.autograd.grad(l1, params, grad_outputs=Jup / len(Jup), retain_graph=True))
+    Jvp = torch.autograd.grad(uJp, u, grad_outputs=v, retain_graph=True)[0]  # using fwd autodiff trick
+    hvp1 = list(torch.autograd.grad(l1, params, grad_outputs=Jvp / len(Jvp), retain_graph=True))
 
     # TODO: Try using ``_compute_dot_product`` here instead
     gTv = sum((g_ * v_).sum() for g_, v_ in zip(grad_estimates, v))  # inner product <grad, v>
