@@ -24,15 +24,17 @@ class ACRPN(Optimizer):
                  params: List[Tensor],
                  alpha: float,
                  eps: float = 1e-2,
-                 sigma: float = 1e-6,
-                 timesteps: int = 100,
+                 sigma: float = 1e-3,
+                 maxiter: int = 100,
                  eta: float = 1e-4,
                  maximize: bool = False):
 
         if alpha < 0.0:
-            raise ValueError("Invalid alpha parameter: {}".format(alpha))
+            raise ValueError(f"Invalid alpha parameter: {alpha}")
+        if maxiter < 1:
+            raise ValueError(f"maxiter should be greater than or equal to 1 and not {maxiter}")
 
-        defaults = dict(eps=eps, alpha=alpha, sigma=sigma, timesteps=timesteps, eta=eta,
+        defaults = dict(eps=eps, alpha=alpha, sigma=sigma, maxiter=maxiter, eta=eta,
                         maximize=maximize)
 
         super().__init__(params, defaults)
@@ -41,7 +43,6 @@ class ACRPN(Optimizer):
         super().__setstate__(state)
         for group in self.param_groups:
             group.setdefault('maximize', False)
-            # group.setdefault('differentiable', False)
 
     # @calculate_time
     def step(self, l1, l2, closure=None):  # Todo: Try incorporating the loses under closure
@@ -61,7 +62,7 @@ class ACRPN(Optimizer):
             eps=group['eps'],
             alpha=group['alpha'],
             sigma=group['sigma'],
-            timesteps=int(group['timesteps']),
+            maxiter=int(group['maxiter']),
             eta=group['eta'],
         )
 
@@ -74,7 +75,7 @@ def acrpn(params: List[Tensor],
           eps: float,
           alpha: float,
           sigma: float,
-          timesteps: int,
+          maxiter: int,
           eta: float):
 
     grad_estimates = list(torch.autograd.grad(l1.mean(), params, create_graph=True))
@@ -87,10 +88,10 @@ def acrpn(params: List[Tensor],
     # Takes in a vector `v` and calculates the Hessian-vector product
     hvp_func = lambda v: _estimate_hvp(params, v, l1, uJp=uJp, u=u, grad_estimates=grad_estimates)
 
-    delta, delta_j = cubic_subsolver(grad_estimates_detached, hvp_func, alpha, sigma, timesteps, eta)
+    delta, f_delta = cubic_subsolver(grad_estimates_detached, hvp_func, alpha, eps, sigma, maxiter, eta)
 
-    if delta_j > -1 / 100 * math.sqrt(eps ** 3 / alpha):
-        delta = cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, timesteps, eta, delta=delta)
+    if f_delta > -1 / 100 * math.sqrt(eps ** 3 / alpha):
+        delta = cubic_finalsolver(grad_estimates_detached, hvp_func, alpha, eps, maxiter, eta, delta=delta)
 
     # Update params
     with torch.no_grad():
@@ -101,72 +102,107 @@ def acrpn(params: List[Tensor],
 def cubic_subsolver(grad_estimates_detached: List[Tensor],
                     hvp_func: Callable[[List[Tensor]], List[Tensor]],
                     alpha: float,
+                    eps: float,
                     sigma: float,
-                    timesteps: int,
+                    maxiter: int,
                     eta: float):
     """
-    Implementation of the cubic-subsolver regime as described in Algorithm 2 of Tripuraneni et. al.
+    Implementation of the cubic-subsolver regime as described in Carmon & Duchi paper
+
+    define: f(x; g) = 1/2 <x, H[x]> + <g, x> + alpha / 6 ||x||^3 [Cubic sub-model]
+            f'(x; g) = H[x] + g + alpha / 2 ||x|| x
+            threshold = -1 / 100 * eps^(3/2) * alpha^(-1/2)
 
     ** Cauchy step **
     R_c  <-  -beta + sqrt( beta^2 + 2*||g|| / alpha), where beta = <g, Hg> / (alpha * ||g||^2)
-    Delta  <-  - R_c g / ||g||
+    Delta  <-  -R_c * g / ||g||
+
+    if f(Delta) < threshold:
+        return Delta, f(Delta)
+    else:
+        GO TO GRADIENT DESCENT
 
     ** Gradient Descent **
-     TODO: Finish description
 
+    g_noise <- g + sigma * q, where q ~ Uniformly from a sphere
+
+    ** Cauchy step with noise **
+    R_c_noise  <-  -beta_noise + sqrt( beta_noise^2 + 2*||g_noise|| / alpha),
+    where beta_noise = <g_noise, H g_noise> / (alpha * ||g_noise||^2)
+
+    Delta_0  <-  -R_c_noise * g_noise / ||g_noise||
+
+    for 1, 2, ..., maxiter:
+        Delta_t <- Delta_{t-1} - eta * (g_noise + H[g_noise] + alpha / 2 * ||Delta_{t-1}|| * Delta_{t-1})
+
+        if f(Delta_t; g) < threshold:
+            return Delta_t, f(Delta_t; g)
+
+    return Delta_t, f(Delta_t)
     """
 
+    # Take Cauchy-Step
     grad_norm = _compute_norm(grad_estimates_detached)
 
-    if grad_norm > 1 / alpha:
-        # Take Cauchy-Step
-        beta = _compute_dot_product(grad_estimates_detached, hvp_func(grad_estimates_detached))
-        beta /= alpha * grad_norm * grad_norm
-        R_c = -beta + math.sqrt(beta * beta + 2 * grad_norm / alpha)
+    beta = _compute_dot_product(grad_estimates_detached, hvp_func(grad_estimates_detached))
+    beta /= alpha * grad_norm * grad_norm
+    R_c = -beta + math.sqrt(beta * beta + 2 * grad_norm / alpha)
 
-        # Cauchy point
-        delta = list(-R_c * g_detached / grad_norm for g_detached in grad_estimates_detached)
+    # Cauchy point
+    delta = list(-R_c * g_detached / grad_norm for g_detached in grad_estimates_detached)
 
-    else:
-        perturb = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
-        perturb_norm = _compute_norm(perturb) + 1e-9
+    # sub-model value at delta_0 (Cauchy-point), i.e. f(delta_0)
+    # where f(x) = 1/2 <x, H[x]> + <g, x> + alpha / 6 ||x||^3 [Cubic sub-model]
+    # -> f(delta_0) = - 1/2 * (R_c ||g|| + alpha / 6 * R_c^3)
+    f_delta = - 1 / 2 * (R_c * grad_norm + alpha / 6 * R_c ** 3)
 
-        grad_noise = list(g_detach + sigma * grad_norm * per_ / perturb_norm for g_detach, per_ in
-                          zip(grad_estimates_detached, perturb))
+    if f_delta < -1 / 100 * math.sqrt(eps ** 3 / alpha):
+        return delta, f_delta
 
-        # Todo: Figure out whether or not to implement below commented code
-        # grad_noise_norm = _compute_norm(grad_noise)
-        #
-        # # Take Cauchy-Step with noisy gradient
-        # beta = _compute_dot_product(grad_noise, hvp_func(grad_noise))
-        # beta /= alpha * grad_noise_norm * grad_noise_norm
-        #
-        # R_c = -beta + math.sqrt(beta * beta + 2 * grad_noise_norm / alpha)
-        # delta = list(-R_c * g_noise / grad_noise_norm for g_noise in grad_noise)
+    # If above condition is not satisfied, try noisy gradient descent
+    q = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
+    q_norm = _compute_norm(q) + 1e-9
 
-        delta = list(torch.zeros_like(g_detach) for g_detach in grad_estimates_detached)
+    grad_noise = list(g_detach + sigma * q_ / q_norm for g_detach, q_ in zip(grad_estimates_detached, q))
 
-        for j in range(timesteps):
-            hvp_delta = hvp_func(delta)
-            norm_delta = _compute_norm(delta)
-            for i, grad_noise_i in enumerate(grad_noise):
-                delta[i][:] -= eta * (grad_noise_i + hvp_delta[i] + alpha / 2 * norm_delta * delta[i])
+    # Take Cauchy-Step with noisy gradient
+    grad_noise_norm = _compute_norm(grad_noise)
 
-    # Compute the function value
+    beta_noise = _compute_dot_product(grad_noise, hvp_func(grad_noise))
+    beta_noise /= alpha * grad_noise_norm * grad_noise_norm
+    R_c_noise = -beta_noise + math.sqrt(beta_noise * beta_noise + 2 * grad_noise_norm / alpha)
+
+    # Cauchy point w noisy grad
+    delta = list(-R_c_noise * g_noise / grad_noise_norm for g_noise in grad_noise)
+
     hvp_delta = hvp_func(delta)
     norm_delta = _compute_norm(delta)
 
-    delta_j = (_compute_dot_product(grad_estimates_detached, delta) + 0.5 * _compute_dot_product(delta, hvp_delta)
-               + alpha / 6 * norm_delta ** 3)
+    for _ in range(maxiter):
+        # Update delta in-place
+        for i, grad_noise_i in enumerate(grad_noise):
+            delta[i][:] -= eta * (grad_noise_i + hvp_delta[i] + alpha / 2 * norm_delta * delta[i])
 
-    return delta, delta_j
+        hvp_delta = hvp_func(delta)
+        norm_delta = _compute_norm(delta)
+
+        # sub-model value at delta
+        f_delta = (0.5 * _compute_dot_product(delta, hvp_delta) +
+                   _compute_dot_product(grad_estimates_detached, delta) +
+                   alpha / 6 * norm_delta ** 3)
+
+        # If condition is reached, break early
+        if f_delta < -1 / 100 * math.sqrt(eps ** 3 / alpha):
+            return delta, f_delta
+
+    return delta, f_delta
 
 
 def cubic_finalsolver(grad_estimates_detached: List[Tensor],
                       hvp_func: Callable[[List[Tensor]], List[Tensor]],
                       alpha: float,
                       eps: float,
-                      timesteps: int,
+                      maxiter: int,
                       eta: float,
                       delta: List[Tensor]):
     """
@@ -175,7 +211,7 @@ def cubic_finalsolver(grad_estimates_detached: List[Tensor],
 
     # Start from cauchy point, i.e. delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
-    for _ in range(timesteps):
+    for _ in range(maxiter):
         for i, g_i in enumerate(grad_iterate):
             delta[i][:] -= eta * g_i
 
@@ -185,9 +221,9 @@ def cubic_finalsolver(grad_estimates_detached: List[Tensor],
             grad_iterate[i][:] = g_detach_i + hvp_delta[i] + alpha / 2 * norm_delta * delta[i]
 
         norm_grad_iterate = _compute_norm(grad_iterate)
-        # print(norm_grad_iterate, end="\r")
         if norm_grad_iterate < eps / 2:
             break
+
     return delta
 
 
@@ -213,5 +249,4 @@ def _compute_dot_product(a: List[Optional[torch.Tensor]], b: List[Optional[torch
 
 
 def _compute_norm(a: List[Optional[torch.Tensor]]) -> float:
-    return math.sqrt((torch.tensor([(a_*a_).sum() for a_ in a])).sum())
-
+    return math.sqrt((torch.tensor([(a_ * a_).sum() for a_ in a])).sum())
