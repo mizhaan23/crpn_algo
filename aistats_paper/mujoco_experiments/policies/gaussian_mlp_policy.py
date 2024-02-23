@@ -6,7 +6,7 @@ import numpy as np
 from torch.distributions.normal import Normal
 
 
-def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+def layer_init(layer, bias_const=0.0):
     torch.nn.init.xavier_uniform_(layer.weight, gain=1.0)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
@@ -46,7 +46,6 @@ class GaussianMLPPolicy(nn.Module):
 
         self.mean_network = nn.Sequential(*layers)
         self.std_network = copy.deepcopy(self.mean_network)
-
 
     def get_action(self, x):
         action_mean = F.tanh(self.mean_network(x))
