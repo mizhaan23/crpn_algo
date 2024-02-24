@@ -11,7 +11,7 @@ import random
 from torch.utils.tensorboard import SummaryWriter
 from distutils.util import strtobool
 
-from algo._optimizers import ACRPN
+from algo.optimizers import ACRPN
 from policies.gaussian_mlp_policy import GaussianMLPPolicy
 from utils import simulate_trajectories, discount_cumsum
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
     # agent = Agent(envs).to(device)
     agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
-    optimizer = ACRPN(agent.parameters(), alpha=args.alpha)
+    optimizer = ACRPN(list(agent.parameters()), alpha=args.alpha)
 
     # Simulation parameters
     max_timesteps = args.max_timesteps
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     writer.close()
 
     end = time.time()
-    print(f"TOTAL ELAPSED TIME: {end-start} seconds")
+    print(f"TOTAL ELAPSED TIME: {end - start} seconds")
 
     if args.save:
 
