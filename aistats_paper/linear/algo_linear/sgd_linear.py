@@ -1,15 +1,14 @@
 import numpy as np
 from sklearn.preprocessing import PolynomialFeatures
 from scipy.special import softmax
-from scipy.optimize import minimize
-from agent import LinearRLAgent
+from algo_linear.agent import LinearRLAgent
 
 
-class LinearPolyCRPN(LinearRLAgent):
-    def __init__(self, envs, alpha=1e4, normalize_returns=False, poly_degree=1, set_bias=False):
+class LinearPolySGD(LinearRLAgent):
+    def __init__(self, envs, lr=0.01, normalize_returns=False, poly_degree=1, set_bias=False):
         super().__init__(envs)
 
-        self.alpha = alpha
+        self.lr = lr
         self.featurize = PolynomialFeatures(degree=poly_degree, include_bias=set_bias, order='F')
         self.featurize.fit(self.observation_space.sample().reshape(1, -1))
 
@@ -35,9 +34,9 @@ class LinearPolyCRPN(LinearRLAgent):
         action = np.argmax(rvs[:, np.newaxis] < cdf, axis=1)
         return action, action_prob
 
-    def learn(self, traj_info, dones, alp=None):
+    def learn(self, traj_info, dones, lr=None):
         GAMMA = self.discount_factor
-        ALPHA = self.alpha if alp is None else alp
+        LEARNING_RATE = self.lr if lr is None else lr
 
         S = traj_info['states']
         A = traj_info['actions']
@@ -47,28 +46,8 @@ class LinearPolyCRPN(LinearRLAgent):
         Y = self.discount_cumsum(R, dones, gamma=GAMMA, normalize=self.normalize_returns)
 
         # Y = -Y for minimization of costs
-        g, H = self.compute_gradient_and_hessian_estimate(S, A, P, -Y, dones, compute_hessian=True)
-
-        # Compute the optima for the cubic-regularized sub-problem
-        v0 = np.random.randn(self.num_params,)
-        result = minimize(
-            self._fg, v0, method='Newton-CG', jac=True, hess=self._hess, args=(H, g, ALPHA),
-            tol=np.finfo(np.float32).eps, options={'maxiter': 500}
-        )
+        g, _ = self.compute_gradient_and_hessian_estimate(S, A, P, -Y, dones, compute_hessian=False)
 
         # make update
-        self.params[:] = self.params + result.x
-        return g, H, result
-
-    @staticmethod
-    def _fg(v, H, g, alpha):
-        n = np.linalg.norm(v)
-        Hv = H @ v
-        s = np.dot(g, v) + .5 * np.dot(Hv, v) + alpha / 6 * n ** 3
-        j = g + Hv + alpha / 2 * n * v
-        return s, j
-
-    @staticmethod
-    def _hess(v, H, g, alpha):
-        n = np.linalg.norm(v)
-        return H + alpha / 2 * (v @ v.T / n + n * np.eye(len(v)))
+        self.params[:] = self.params - LEARNING_RATE * g
+        return g, None, None

@@ -66,11 +66,9 @@ class LinearRLAgent:
         if normalize:
             for i in range(rewards.shape[1]):
                 m = np.argmax(dones[:, i]) - 1
-                # discounted_rewards[:, i] = (discounted_rewards[:, i] - discounted_rewards[:, i][:m].mean()) \
-                #                            / (discounted_rewards[:, i][:m].std() + 1e-9)
-                # discounted_rewards[m:, i] = 0.
-                discounted_rewards[:, i] = discounted_rewards[:, i] / (discounted_rewards[:, i][:m].std() + 1e-9)
-        return discounted_rewards
+                discounted_rewards[:, i] = (discounted_rewards[:, i] - discounted_rewards[:, i][:m].mean()) \
+                                           / (discounted_rewards[:, i][:m].std() + 1e-9)
+        return discounted_rewards * ~dones
 
     @staticmethod
     def _mult1(A, B):

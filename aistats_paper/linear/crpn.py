@@ -1,15 +1,16 @@
 import time
 import argparse
 import numpy as np
-import gym
+import gymnasium as gym
 import joblib
+import random
 import os
 import inspect
 from datetime import datetime
 from distutils.util import strtobool
 import shutil
 
-from crpn_linear import LinearPolyCRPN
+from algo_linear.crpn_linear import LinearPolyCRPN
 import wandb
 
 
@@ -80,8 +81,10 @@ def parse_args():
     parser.add_argument("--gym-id", type=str, default="CartPole-v1",
                         help="the id of the gym environment")
     parser.add_argument("--env-seed", type=int, default=1,
-                        help="the id of the gym environment")
-    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True,
+                        help="the seed of the gym environment")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="the seed of all rngs")
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False,
                         help="the id of the gym environment")
 
     # agent specific args
@@ -101,10 +104,10 @@ def parse_args():
                         help="total update epochs for the policy")
     parser.add_argument("--batch-size", type=int, default=50,
                         help="the number of parallel game environments")
-    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=False,
                         help="if toggled, this experiment will be saved locally")
-    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=True,
-                        help="if toggled, this experiment will be saved locally")
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False,
+                        help="if toggled, this experiment will be tracked on wandb")
 
     args = parser.parse_args()
     return args
@@ -153,6 +156,7 @@ def get_mp4_files(directory):
 if __name__ == "__main__":
 
     args = parse_args()
+    run_name = f"{args.gym_id}__{args.exp_name}__{args.seed}__{int(args.alpha)}__{int(time.time())}"
 
     if args.track:
         config = args
@@ -167,10 +171,13 @@ if __name__ == "__main__":
         )
 
     # envs = gym.vector.make(args.gym_id, num_envs=args.batch_size, render_mode="rgb_array")
+    # TRY NOT TO MODIFY: seeding
+    random.seed(args.seed)
+    np.random.seed(args.seed)
 
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.gym_id, i, args.capture_video, run_name=args.exp_name, args=args)
-         for i in range(args.batch_size)]
+        [lambda: gym.make(args.gym_id) for i in range(args.batch_size)],
+        copy=False,
     )
 
     if not args.env_seed == -1:
@@ -213,15 +220,13 @@ if __name__ == "__main__":
 
         simulation_rewards += list(episodic_rewards)
         simulation_returns += list(episodic_returns)
-        delta_norm_squared.append(np.linalg.norm(opt_res.x))
         grad_norm_squared.append(np.linalg.norm(curr_grad))
-
-        print(f"DIFFERENCE {i}: ", np.linalg.norm(curr_grad)**2, end="\r")
+        delta_norm_squared.append(np.linalg.norm(opt_res.x))
 
         avg_traj_length = dones.shape[0]
 
-        # print(f"Iteration {i}, Reward: {np.mean(episodic_rewards)}, T1: {np.round(t1 / avg_traj_length * 1000, 3)}, "
-        #       f"T2:{np.round(t2 / avg_traj_length * 1000, 3)}", end="\r")
+        print(f"Iteration {i}, Reward: {np.mean(episodic_rewards)}, Delta norm squared: {np.linalg.norm(curr_grad) ** 2}, T1: {np.round(t1 / avg_traj_length * 1000, 3)}, "
+              f"T2:{np.round(t2 / avg_traj_length * 1000, 3)}", end="\r")
 
         if args.track:
             if args.capture_video:
@@ -272,13 +277,13 @@ if __name__ == "__main__":
 
         out_dict = {
             # simulation info
-            "episodic_rewards": simulation_rewards,
-            "episodic_returns": simulation_returns,
-            # "delta_norm_squared": delta_norm_squared,
-            "grad_norm_squared": grad_norm_squared,
-            "batch_size": args.batch_size,
-            "horizon": args.max_timesteps,
-            "nits": args.num_updates,
+            "episodic_rewards": np.array(simulation_rewards, dtype=np.float32),
+            "episodic_returns": np.array(simulation_returns, dtype=np.float32),
+            "batch_size": int(args.batch_size),
+            "horizon": int(args.max_timesteps),
+            "nits": int(args.num_updates),
+            "delta_norm_squared": np.array(delta_norm_squared, dtype=np.float32),
+            "grad_norm_squared": np.array(grad_norm_squared, dtype=np.float32),
 
             # agent info
             "agent_name": agent.__class__.__name__,
@@ -286,11 +291,11 @@ if __name__ == "__main__":
             "agent_input_keys": list(dict(inspect.signature(agent.__class__).parameters).keys()),
 
             # env info
-            "env_id": args.gym_id,
+            "env_id": str(args.gym_id),
         }
-        save_path = f"{os.path.basename(__file__).rstrip('.py')}/{args.exp_name}"
+        save_path = f"{os.path.basename(__file__).rstrip('.py')}/{'__'.join(run_name.split('__')[:-1])}"
         if not os.path.exists(f'./data/{save_path}'):
             os.makedirs(f'./data/{save_path}')
 
         for k, v in out_dict.items():
-            joblib.dump(v, f"./data/{save_path}/{args.exp_name}.{k}")
+            joblib.dump(v, f"./data/{save_path}/{k}.data")
