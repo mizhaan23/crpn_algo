@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import gym
+import gymnasium as gym
 from torch.distributions import Categorical
 import os
 import shutil
@@ -29,7 +29,7 @@ def parse_args():
                         help="the seed of the gym environment")
     parser.add_argument("--seed", type=int, default=0,
                         help="the seed of all rngs")
-    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False,
                         help="the id of the gym environment")
 
     # agent specific args
@@ -49,9 +49,9 @@ def parse_args():
                         help="total update epochs for the policy")
     parser.add_argument("--batch-size", type=int, default=50,
                         help="the number of parallel game environments")
-    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=False,
                         help="if toggled, this experiment will be saved locally")
-    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False,
                         help="if toggled, this experiment will be saved locally")
 
     # cuda stuff
@@ -83,7 +83,7 @@ def simulate_trajectories(envs, agent, horizon, device):
     m = None
     for t in range(horizon):
 
-        obs = torch.tensor(obs).to(device)
+        obs = torch.tensor(np.float32(obs)).to(device)
         action_prob = agent(obs)  # (bs, ), (bs, action_dim)
         dist = Categorical(action_prob)
         action = dist.sample()
@@ -253,9 +253,8 @@ if __name__ == "__main__":
 
         avg_traj_length = dones.shape[0]
 
-        if (i+1) % 100:
-            print(f"Iteration {i}, Reward: {episodic_rewards.mean()}, T1: {np.round(t1 / avg_traj_length * 1000, 3)}, "
-                  f"T2:{np.round(t2 / avg_traj_length * 1000, 3)}", end="\r")
+        print(f"Iteration {i}, Reward: {episodic_rewards.mean()}, T1: {np.round(t1, 3)}, "
+              f"T2:{np.round(t2, 3)}", end="\n")
 
         if args.track:
             for t, r in enumerate(zip(episodic_rewards, episodic_returns)):
