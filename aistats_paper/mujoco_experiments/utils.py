@@ -57,7 +57,6 @@ def discount_cumsum(rewards, dones, gamma: float, normalize: bool = True, device
     if normalize:
         for i in range(rewards.shape[1]):
             m = torch.argmax(1. * dones[:, i]) - 1
-            # print(m+1, torch.argmax(1. * dones[:, i]))
             discounted_rewards[:, i] = (discounted_rewards[:, i] - discounted_rewards[:, i][:m].mean()) / (
                         discounted_rewards[:, i][:m].std() + 1e-9)
     return discounted_rewards * ~dones
