@@ -12,7 +12,9 @@ from distutils.util import strtobool
 
 from torch.optim import SGD
 from policies.gaussian_mlp_policy import GaussianMLPPolicy
+from policies.categorical_linear_policy import CategoricalLinearPolicy
 from utils import simulate_trajectories, discount_cumsum
+
 
 def calculate_time(func):
     def wrapper(*args, **kwargs):
@@ -54,9 +56,9 @@ def parse_args():
                         help="total update epochs for the policy")
     parser.add_argument("--batch-size", type=int, default=100,
                         help="the number of parallel game environments")
-    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--save", type=lambda x: bool(strtobool(x)), default=False,
                         help="if toggled, this experiment will be saved locally")
-    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=True,
+    parser.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False,
                         help="if toggled, this experiment will be tracked on wandb")
 
     # cuda stuff
@@ -114,11 +116,20 @@ if __name__ == "__main__":
         envs.action_space.seed(seed=args.env_seed)
         envs.observation_space.seed(seed=args.env_seed)
 
-    # agent = Agent(envs).to(device)
-    agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
+    # Get Agent according to env action space type
+    if isinstance(envs.single_action_space, gym.spaces.Discrete):
+        print(f"Discrete Action Space for {args.gym_id}")
+        if len(tuple(args.hidden_sizes)) == 0:
+            agent = CategoricalLinearPolicy(envs, init_seed=args.seed).to(device)
+        else:
+            raise NotImplementedError("Implement categorical MLP policy!")
+    elif isinstance(envs.single_action_space, gym.spaces.Box):
+        print(f"Continuous Action Space for {args.gym_id}")
+        agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
+    else:
+        raise NotImplementedError("Unknown Action Space Type!")
 
-    lr = args.alpha ** (-2/3)
-    optimizer = SGD(agent.parameters(), lr=lr)  # math.sqrt(2 / args.alpha)
+    optimizer = SGD(agent.parameters(), lr=args.alpha ** (-2/3))
 
     # Simulation parameters
     max_timesteps = args.max_timesteps
@@ -126,6 +137,8 @@ if __name__ == "__main__":
 
     simulation_rewards = []
     simulation_returns = []
+
+    start = time.time()
     for i in range(num_iterations):
 
         t_ = time.time()
@@ -171,9 +184,10 @@ if __name__ == "__main__":
     envs.close()
     writer.close()
 
-    if args.save:
+    end = time.time()
+    print(f"TOTAL ELAPSED TIME: {end - start} seconds")
 
-        # curr_time = datetime.now().strftime('%Y%m%d%H%M%S')
+    if args.save:
 
         out_dict = {
             # simulation info
