@@ -23,7 +23,7 @@ class ACRPN(Optimizer):
     def __init__(self,
                  params: List[Tensor],
                  alpha: float,
-                 eps: float = 1e-2,
+                 eps: float = 1e-8,
                  sigma: float = 1e-3,
                  maxiter: int = 100,
                  eta: float = 1e-4,
@@ -158,7 +158,7 @@ def cubic_subsolver(grad_estimates_detached: List[Tensor],
 
     if f_delta < -1 / 100 * math.sqrt(eps ** 3 / alpha):
         return delta, f_delta
-
+    print('sub-solver gd')
     # If above condition is not satisfied, try noisy gradient descent
     q = list(torch.randn(g_detach.shape, device=g_detach.device) for g_detach in grad_estimates_detached)
     q_norm = _compute_norm(q) + 1e-9
@@ -208,7 +208,7 @@ def cubic_finalsolver(grad_estimates_detached: List[Tensor],
     """
     TODO : Add description
     """
-
+    print('final-solver gd')
     # Start from cauchy point, i.e. delta = delta
     grad_iterate = deepcopy(grad_estimates_detached)
     for _ in range(maxiter):
