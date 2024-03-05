@@ -10,7 +10,7 @@ import random
 from torch.utils.tensorboard import SummaryWriter
 from distutils.util import strtobool
 
-from algo.optimizers import ACRPN
+from algo import ACRPN
 from policies import GaussianMLPPolicy, CategoricalMLPPolicy, CategoricalLinearPolicy
 from utils import simulate_trajectories, discount_cumsum
 
