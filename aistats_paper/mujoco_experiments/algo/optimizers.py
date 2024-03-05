@@ -233,7 +233,9 @@ def _estimate_hvp(params: List[Tensor],
                   uJp: List[Tensor],
                   u: List[Tensor],
                   grad_estimates: List[Optional[Tensor]]):
-
+    """
+    Main function that calculates the Hessian-vector product efficiently, using the trick mentioned in the main paper.
+    """
     Jvp = torch.autograd.grad(uJp, u, grad_outputs=v, retain_graph=True)[0]  # using fwd autodiff trick
     hvp1 = list(torch.autograd.grad(l1, params, grad_outputs=Jvp / len(Jvp), retain_graph=True))
 
