@@ -11,8 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from distutils.util import strtobool
 
 from algo.optimizers import ACRPN
-from policies.gaussian_mlp_policy import GaussianMLPPolicy
-from policies.categorical_linear_policy import CategoricalLinearPolicy
+from policies import GaussianMLPPolicy, CategoricalMLPPolicy, CategoricalLinearPolicy
 from utils import simulate_trajectories, discount_cumsum
 
 
@@ -122,7 +121,7 @@ if __name__ == "__main__":
         if len(tuple(args.hidden_sizes)) == 0:
             agent = CategoricalLinearPolicy(envs, init_seed=args.seed).to(device)
         else:
-            raise NotImplementedError("Implement categorical MLP policy!")
+            agent = CategoricalMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
     elif isinstance(envs.single_action_space, gym.spaces.Box):
         print(f"Continuous Action Space for {args.gym_id}")
         agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
