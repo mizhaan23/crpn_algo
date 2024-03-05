@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         command = [
             'python',
-            f'aistats_paper/mujoco_experiments/{ALGO}.py',
+            f'aistats_paper/deep/{ALGO}.py',
             '--exp-name', f'{ALGO.upper()}{s + 1}_FINAL',
             '--env-seed', '-1',
             '--save', 'True',
