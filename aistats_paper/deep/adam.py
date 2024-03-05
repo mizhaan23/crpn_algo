@@ -10,7 +10,7 @@ import random
 from torch.utils.tensorboard import SummaryWriter
 from distutils.util import strtobool
 
-from torch.optim import SGD
+from torch.optim import Adam
 from policies import GaussianMLPPolicy, CategoricalMLPPolicy, CategoricalLinearPolicy
 from utils import simulate_trajectories, discount_cumsum
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         raise NotImplementedError("Unknown Action Space Type!")
 
     lr = args.alpha ** (-2 / 3)
-    optimizer = SGD(agent.parameters(), lr=lr)
+    optimizer = Adam(agent.parameters(), lr=lr)
 
     # Simulation parameters
     max_timesteps = args.max_timesteps
