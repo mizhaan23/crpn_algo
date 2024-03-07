@@ -2,26 +2,30 @@
 
 This directory contains the source code of the experiments as shown in the main paper. The directory is structured as follows:
 
-aistats_paper \
-├── deep  # experiments related to ACR-PN specifically using deep nueral networks \
-├    ├── acrpn.py  # runner for ACR-PN algorithm \
-├    ├── optimizers.py  # implementation of algorithm \
-├    ├── sgd.py  # runner for REINFORCE benchmark \
-├    └── utils.py  # helper functions / methods \
-└── linear  # experiments related to CR-PN and REINFORCE using linear function approximators \
-     ├── agent.py  # base class \
-     ├── crpn.py  # runner for CR-PN algorithm \
-     ├── crpn_linear.py  # main class for CR-PN \
-     ├── sgd.py  # runner for REINFORCE algorithm \
-     └── sgd_linear.py  # main class for REINFORCE
+
++ `aistats_paper`  : _experiments mentioned in the main paper_
+  + `experiments_deep.py`  : _experiments related to ACR-PN using deep neural networks_
+  + `experiments_linear.py`  : _experiments related to CR-PN using linear function approximation_
+
++ `deep` : _source code for deep experiments_
+  + `acrpn.py` : _runner for ACR-PN algorithm_
+  + `reinforce.py`  : _runner for REINFORCE benchmark_
+  
++ `linear` : _source code for linear experiments_
+  + `crpn.py` : _runner for CR-PN algorithm_
+  + `reinforce.py` : _runner for REINFORCE benchmark_
 
 ## Installation
 
 Need installation of gymnasium, pytorch, etc.
 
++ Installing `gymnasium` on windows : https://youtu.be/gMgj4pSHLww?si=1H-IStte7aDONybT
++ Installing `pytorch` : https://pytorch.org/get-started/locally/
++ Rest you can use `conda` or `pip`.
+
 ## Usage
 
 You may run the following command on terminal for example:
 ```
-python deep/acrpn.py --exp-name acrpn_test --env-seed -1 --save True --track False --capture-video False --alpha 10000
+python deep/acrpn.py --exp-name acrpn_test --env-seed -1 --save False --track False --alpha 10000
 ```
