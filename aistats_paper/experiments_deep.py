@@ -32,7 +32,7 @@ if __name__ == "__main__":
     NUM_SIMULATIONS = 10
     ENV = "CartPole-v1"
     env_config = config[ENV]
-    ALGO = 'acrpn'  # {sgd, acrpn}
+    ALGO = 'acrpn'  # {reinforce, acrpn}
 
     t_ = time.time()
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         command = [
             'python',
             f'deep/{ALGO}.py',
-            '--exp-name', f'{ALGO.upper()}{s + 1}_FINAL',
+            '--exp-name', f'{ALGO.upper()}{s + 1}_DEEP',
             '--env-seed', '-1',
             '--save', 'False',  # change to True if you want to save simulation data.
             '--track', 'False',

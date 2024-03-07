@@ -26,7 +26,7 @@ if __name__ == "__main__":
         command = [
             'python',
             f'linear/{ALGO}.py',
-            '--exp-name', f'{ALGO.upper()}{s + 1}_LINEARFINAL',
+            '--exp-name', f'{ALGO.upper()}{s + 1}_LINEAR',
             '--env-seed', '-1',
             '--save', 'False',  # change to True if you want to save simulation data.
             '--track', 'False',
