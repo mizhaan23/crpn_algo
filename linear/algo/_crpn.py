@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.preprocessing import PolynomialFeatures
 from scipy.special import softmax
 from scipy.optimize import minimize
-from algo_linear.agent import LinearRLAgent
+from ._agent import LinearRLAgent
 
 
 class LinearPolyCRPN(LinearRLAgent):
