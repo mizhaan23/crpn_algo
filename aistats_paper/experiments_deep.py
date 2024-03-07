@@ -32,7 +32,7 @@ if __name__ == "__main__":
     NUM_SIMULATIONS = 10
     ENV = "CartPole-v1"
     env_config = config[ENV]
-    ALGO = 'acrpn'  # {reinforce, acrpn}
+    ALGO = 'reinforce'  # {reinforce, acrpn}
 
     t_ = time.time()
 
