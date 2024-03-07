@@ -5,18 +5,7 @@ from torch.optim.optimizer import Optimizer
 from typing import Dict, List, Tuple, Optional, Callable
 import time
 from copy import deepcopy
-
-
-def calculate_time(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Time taken to execute {func.__name__}: {elapsed_time} seconds")
-        return result
-
-    return wrapper
+from deep.utils import calculate_time
 
 
 class ACRPN(Optimizer):
