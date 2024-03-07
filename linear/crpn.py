@@ -10,7 +10,7 @@ from datetime import datetime
 from distutils.util import strtobool
 import shutil
 
-from algo_linear.crpn_linear import LinearPolyCRPN
+from algo._crpn import LinearPolyCRPN
 import wandb
 
 
