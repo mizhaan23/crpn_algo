@@ -23,5 +23,5 @@ Need installation of gymnasium, pytorch, etc.
 
 You may run the following command on terminal for example:
 ```
-python deep/acrpn.py --exp-name acrpn_test --env-seed -1 --save True --track False --capture-video False --alpha 10000
+python deep/acrpn.py --exp-name acrpn_test --env-seed -1 --save False --track False --alpha 10000
 ```
