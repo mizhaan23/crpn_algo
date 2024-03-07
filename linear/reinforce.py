@@ -10,7 +10,7 @@ from datetime import datetime
 from distutils.util import strtobool
 import shutil
 
-from algo._reinforce import LinearPolySGD
+from algo_linear.sgd_linear import LinearPolySGD
 import wandb
 
 
