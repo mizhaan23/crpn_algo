@@ -1,6 +1,6 @@
 # A Cubic-regularized Policy Newton Algorithm for Reinforcement Learning
 
-This directory contains the source code of the experiments as shown in the main paper. The directory is structured as follows:
+This directory contains the source code of the experiments as shown in the main paper that can be found here https://proceedings.mlr.press/v238/maniyar24a.html. The directory is structured as follows:
 
 
 + `aistats_paper`  : _experiments mentioned in the main paper_
