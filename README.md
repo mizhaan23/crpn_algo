@@ -203,12 +203,18 @@ To quantify the computational acceleration achieved by transitioning from eager 
 If you find this code or algorithm useful in your research, please cite the original AISTATS paper:
 
 ```bibtex
-@inproceedings{maniyar2024cubic,
-  title={A Cubic-regularized Policy Newton Algorithm for Reinforcement Learning},
-  author={Maniyar, Mizhaan and others},
-  booktitle={International Conference on Artificial Intelligence and Statistics (AISTATS)},
-  pages={1--10},
-  year={2024},
-  organization={PMLR}
+@InProceedings{pmlr-v238-maniyar24a,
+  title = 	 {A Cubic-regularized Policy {N}ewton Algorithm for Reinforcement Learning},
+  author =       {Maniyar, Mizhaan P. and L.A., Prashanth and Mondal, Akash and Bhatnagar, Shalabh},
+  booktitle = 	 {Proceedings of The 27th International Conference on Artificial Intelligence and Statistics},
+  pages = 	 {4708--4716},
+  year = 	 {2024},
+  editor = 	 {Dasgupta, Sanjoy and Mandt, Stephan and Li, Yingzhen},
+  volume = 	 {238},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {02--04 May},
+  publisher =    {PMLR},
+  pdf = 	 {https://proceedings.mlr.press/v238/maniyar24a/maniyar24a.pdf},
+  url = 	 {https://proceedings.mlr.press/v238/maniyar24a.html},
 }
 ```

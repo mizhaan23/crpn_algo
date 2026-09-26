@@ -1,0 +1,47 @@
+# ==============================================================================
+# Linux / WSL 2 rlenv Requirements
+# Exactly matches Windows rlenv with GPU (CUDA 12) support for BOTH JAX & PyTorch
+# ==============================================================================
+
+# Core GPU Acceleration (Pinned to 0.4.30 for distrax & tensorflow-probability compatibility)
+jax[cuda12]==0.4.30
+jaxlib==0.4.30
+
+# JAX Reinforcement Learning Ecosystem
+gymnax==0.0.9
+flax==0.10.4
+optax==0.2.5
+distrax==0.1.5
+chex==0.1.90
+orbax-checkpoint==0.6.4
+treescope==0.1.10
+tensorstore>=0.1.85
+tensorflow-probability>=0.25.0
+
+# General RL Environments & Physics
+gymnasium==0.29.1
+mujoco>=3.1.4
+shimmy==0.2.1
+ale-py==0.8.1
+pygame>=2.5.2
+pyopengl>=3.1.7
+
+# Data Science, Math & Machine Learning
+numpy>=1.26.4
+scipy>=1.13.0
+pandas>=2.2.2
+scikit-learn>=1.4.2
+matplotlib>=3.9.0
+seaborn>=0.13.2
+joblib>=1.4.2
+tqdm>=4.66.2
+
+# Experiment Tracking & Utilities
+tensorboard>=2.17.0
+wandb>=0.19.0
+pytest>=9.0.0
+setuptools
+
+# Jupyter / Interactive Computing
+ipykernel
+jupyterlab
