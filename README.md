@@ -167,9 +167,11 @@ In underactuated nonlinear dynamical systems like `Acrobot-v1`, policies frequen
 ### 3. Adaptive Step Sizing Prevents Dead ReLUs
 In deep neural networks with piecewise-linear ReLU activations, the loss surface consists of polyhedral linear regions separated by non-differentiable transition boundaries.
 - **Overshooting into Inactive Basins**: Standard REINFORCE relies on a fixed scalar learning rate. Large gradient shocks frequently cause weight updates to overshoot activation boundaries into flat regions where inputs to the ReLU become strictly negative. Once key hidden neurons "die" (zero gradient everywhere), policy capacity permanently collapses, causing seeds to flatline at $-500.00$.
-- **Cubic Cauchy Radius Regularization**: ACRPN solves the cubic subproblem along the gradient direction, producing an analytical Cauchy radius:
-  $$R_c = \frac{-\|g\| + \sqrt{\|g\|^2 + 2\alpha \frac{g^\top H g}{\|g\|}}}{\alpha}$$
-  When the policy approaches a sharp activation boundary or high-curvature ravine, the quadratic form $g^\top H g$ spikes. Rather than taking a destructive fixed-length step, ACRPN automatically contracts the step radius $R_c$, safely traversing boundary transitions without causing neuron death. Conversely, in benign flat regions, $R_c$ automatically expands to accelerate sample efficiency.
+- **Cubic Cauchy Radius Regularization**: Along the normalized gradient descent direction $s = -R \frac{g}{\|g\|}$, minimizing the 1D cubic model $m(R) = -R \|g\| + \frac{1}{2} R^2 \left(\frac{g^\top H g}{\|g\|^2}\right) + \frac{\alpha}{6} R^3$ yields the exact closed-form Cauchy radius:
+  $$R_c = -\beta + \sqrt{\beta^2 + \frac{2 \|g\|}{\alpha}}, \quad \text{where } \beta = \frac{g^\top H g}{\alpha \|g\|^2}$$
+  Equivalently, in terms of directional curvature $\kappa_g = \frac{g^\top H g}{\|g\|^2}$:
+  $$R_c = \frac{-\kappa_g + \sqrt{\kappa_g^2 + 2\alpha \|g\|}}{\alpha}$$
+  When the policy approaches a sharp activation boundary or high-curvature ravine, the curvature $\kappa_g$ spikes, causing $R_c$ to naturally contract (asymptoting to the second-order Newton step length $\frac{\|g\|}{\kappa_g}$), preventing gradient overshooting and dead neurons. Conversely, in flat regions where curvature $\kappa_g \to 0$, it smoothly recovers the first-order cubic rate $R_c \to \sqrt{\frac{2 \|g\|}{\alpha}}$.
 
 ---
 
