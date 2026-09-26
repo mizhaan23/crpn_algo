@@ -1,0 +1,40 @@
+# Experiment Configuration: All 4 MinAtar Environments with ConvNet Policy
+# ACRPN (No Momentum) vs. ACRPN + Momentum (beta1=0.9, beta2=0.9) vs. Baseline (H=0)
+# alpha = 10000.0, Norm = True
+
+# Global Settings
+settings:
+  batch_size: 128
+  alpha: 10000.0
+  num_updates: 500
+  discount_factor: 0.99
+  policy_type: "conv"
+  activation: "relu"
+  seeds: [1]
+
+# Environments to benchmark (All 4 MinAtar games)
+environments:
+  - id: "Breakout-MinAtar"
+    max_timesteps: 500
+  - id: "SpaceInvaders-MinAtar"
+    max_timesteps: 500
+  - id: "Asterix-MinAtar"
+    max_timesteps: 500
+  - id: "Freeway-MinAtar"
+    max_timesteps: 500
+
+# Algorithms to compare
+algorithms:
+  - "acrpn"
+  - "acrpn_momentum"
+  - "baseline"
+
+# Return normalization options
+normalize_returns:
+  - true
+
+# Output settings
+output:
+  plot_file: "acrpn_momentum_minatar_conv_benchmark.png"
+  data_file: "acrpn_momentum_minatar_conv_results.npz"
+  title: "All MinAtar Environments | ConvNet | ACRPN vs. ACRPN+Momentum vs. Baseline (Alpha=10000, Norm=True)"

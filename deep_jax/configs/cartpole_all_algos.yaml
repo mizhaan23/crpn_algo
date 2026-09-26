@@ -1,0 +1,38 @@
+# Experiment Configuration: All 5 Modular Optimizers on CartPole-v1
+# ACRPN vs. Baseline (H=0) vs. HAPG vs. HAPG Baseline vs. REINFORCE
+
+# Global Settings
+settings:
+  batch_size: 128
+  lr: 0.02
+  alpha: 1000.0
+  num_updates: 500
+  discount_factor: 0.99
+  hidden_sizes: [64, 64]
+  activation: "tanh"
+  seeds: [1]
+
+# Environments to benchmark
+environments:
+  - id: "CartPole-v1"
+    max_timesteps: 500
+    solved_threshold: 475.0
+
+# Algorithms to compare
+algorithms:
+  - "acrpn"
+  - "baseline"
+  - "hapg"
+  - "hapg_baseline"
+  - "reinforce"
+
+# Return normalization options
+normalize_returns:
+  - true
+  - false
+
+# Output settings
+output:
+  plot_file: "cartpole_all_algos_benchmark.png"
+  data_file: "cartpole_all_algos_results.npz"
+  title: "CartPole-v1 Benchmark | All Modular Optimizers (B=128, LR=0.02, Alpha=1000)"

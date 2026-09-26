@@ -2,6 +2,10 @@ import time
 import argparse
 import torch
 import numpy as np
+if not hasattr(np, "float_"):
+    np.float_ = np.float64
+if not hasattr(np, "bool_"):
+    np.bool_ = np.bool
 import gymnasium as gym
 import os
 import inspect
@@ -35,6 +39,8 @@ def parse_args():
                         help="will normalize the returns by standard scaling")
     parser.add_argument("--hidden-sizes", type=eval, default=(64, 64),
                         help="hidden-sizes of the neural network")
+    parser.add_argument("--activation", type=str, default="relu", choices=["relu", "tanh", "softmax"],
+                        help="activation function for the MLP policy")
 
     # simulation specific args
     parser.add_argument("--max-timesteps", type=int, default=1000,
@@ -109,10 +115,10 @@ if __name__ == "__main__":
         if len(tuple(args.hidden_sizes)) == 0:
             agent = CategoricalLinearPolicy(envs, init_seed=args.seed).to(device)
         else:
-            agent = CategoricalMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
+            agent = CategoricalMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), activation=args.activation, init_seed=args.seed).to(device)
     elif isinstance(envs.single_action_space, gym.spaces.Box):
         print(f"Continuous Action Space for {args.gym_id}")
-        agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), init_seed=args.seed).to(device)
+        agent = GaussianMLPPolicy(envs, hidden_sizes=tuple(args.hidden_sizes), activation=args.activation, init_seed=args.seed).to(device)
     else:
         raise NotImplementedError("Unknown Action Space Type!")
 
@@ -190,9 +196,10 @@ if __name__ == "__main__":
             # env info
             "env_id": str(args.gym_id),
         }
+        base_dir = os.path.dirname(os.path.abspath(__file__))
         save_path = f"{os.path.basename(__file__).rstrip('.py')}/{'__'.join(run_name.split('__')[:-1])}"
-        if not os.path.exists(f'./data/{save_path}'):
-            os.makedirs(f'./data/{save_path}')
+        target_dir = os.path.join(base_dir, "data", save_path)
+        os.makedirs(target_dir, exist_ok=True)
 
         for k, v in out_dict.items():
-            joblib.dump(v, f"./data/{save_path}/{k}.data")
+            joblib.dump(v, os.path.join(target_dir, f"{k}.data"))

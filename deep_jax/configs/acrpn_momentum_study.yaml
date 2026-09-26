@@ -1,0 +1,44 @@
+# Experiment Configuration: ACRPN (With Momentum vs. Without Momentum)
+# Comparing standard ACRPN (beta1=0, beta2=0) vs. Momentum ACRPN (beta1=0.9, beta2=0.9)
+# Across multiple environments with stable alpha = 5000.0 and Norm=True
+
+# Global Settings
+settings:
+  batch_size: 128
+  alpha: 5000.0
+  num_updates: 350
+  discount_factor: 0.99
+  hidden_sizes: [64, 64]
+  activation: "relu"
+  seeds: [1]
+
+# Diverse environments to benchmark
+environments:
+  - id: "CartPole-v1"
+    max_timesteps: 500
+    solved_threshold: 475.0
+  - id: "Acrobot-v1"
+    max_timesteps: 500
+    solved_threshold: -100.0
+  - id: "MountainCar-v0"
+    max_timesteps: 200
+    solved_threshold: -110.0
+  - id: "Pendulum-v1"
+    max_timesteps: 200
+    solved_threshold: -200.0
+
+# Algorithms to compare
+algorithms:
+  - "acrpn"
+  - "acrpn_momentum"
+  - "baseline"
+
+# Return normalization
+normalize_returns:
+  - true
+
+# Output settings
+output:
+  plot_file: "acrpn_momentum_relu_benchmark.png"
+  data_file: "acrpn_momentum_relu_results.npz"
+  title: "ACRPN Momentum Study (ReLU) | No Momentum vs. Momentum (Alpha=5000, Norm=True)"

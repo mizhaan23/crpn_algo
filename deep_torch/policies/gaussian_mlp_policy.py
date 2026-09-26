@@ -17,6 +17,7 @@ class GaussianMLPPolicy(nn.Module):
             self,
             envs,
             hidden_sizes=(32, 32),
+            activation="relu",
             init_std=1.0,
             min_std=1e-6,
             init_seed=None,
@@ -34,15 +35,22 @@ class GaussianMLPPolicy(nn.Module):
         if init_seed is not None:
             torch.manual_seed(init_seed)
 
+        if activation.lower() == "tanh":
+            act_factory = lambda: nn.Tanh()
+        elif activation.lower() == "relu":
+            act_factory = lambda: nn.ReLU()
+        else:
+            act_factory = lambda: nn.Softmax(dim=-1)
+
         input_layer = layer_init(nn.Linear(input_dim, hidden_sizes[0]))
         output_layer = layer_init(nn.Linear(hidden_sizes[-1], output_dim))
 
         hidden_layers = []
         for i in range(1, len(hidden_sizes)):
             layer = layer_init(nn.Linear(hidden_sizes[i-1], hidden_sizes[i]))
-            hidden_layers += [nn.Softmax(dim=-1), layer]
+            hidden_layers += [act_factory(), layer]
 
-        layers = [input_layer] + hidden_layers + [nn.Softmax(dim=-1), output_layer]
+        layers = [input_layer] + hidden_layers + [act_factory(), output_layer]
 
         self.mean_network = nn.Sequential(*layers)
         self.std_network = copy.deepcopy(self.mean_network)

@@ -1,0 +1,35 @@
+# Experiment Configuration: Curved Corridor (Anisotropic Ravine MDP)
+# Comparing ACRPN (Curvature H), ACRPN + Momentum, and Baseline (H=0) across 3 seeds
+
+# Global Settings
+settings:
+  batch_size: 128
+  alpha: 1000.0
+  lr: 0.02
+  num_updates: 100
+  discount_factor: 0.99
+  hidden_sizes: [32, 32]
+  activation: "tanh"
+  seeds: [1, 2, 3]
+
+# Environment settings
+environments:
+  - id: "CurvedCorridor-v0"
+    max_timesteps: 40
+    solved_threshold: -15.0
+
+# Algorithms to benchmark
+algorithms:
+  - "acrpn"
+  - "acrpn_momentum"
+  - "baseline"
+
+# Return normalization
+normalize_returns:
+  - true
+
+# Output settings
+output:
+  plot_file: "curved_corridor_benchmark.png"
+  data_file: "curved_corridor_results.npz"
+  title: "Curved Corridor (Anisotropic Ravine) | ACRPN vs. Momentum vs. Baseline (3 Seeds)"

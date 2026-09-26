@@ -59,7 +59,7 @@ def simulate_trajectories(envs, policy, horizon, device):
 
 
 @torch.jit.script
-def discount_cumsum(rewards, dones, gamma: float, normalize: bool = True, device: torch.device = 'cpu') -> torch.Tensor:
+def discount_cumsum(rewards, dones, gamma: float, normalize: bool = False, device: torch.device = 'cpu') -> torch.Tensor:
     discounted_rewards = torch.zeros_like(rewards).to(device)
     cumulative_reward = torch.zeros_like(rewards[0]).to(device)
     t = -1

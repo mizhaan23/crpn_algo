@@ -1,0 +1,37 @@
+# Experiment Configuration: HAPG vs. HAPG Baseline (H=0)
+# Single-Loop HAPG at Current Parameters | Normalized Updates (eta = 0.02)
+
+# Global Settings
+settings:
+  batch_size: 128
+  lr: 0.02
+  num_updates: 500
+  discount_factor: 0.99
+  hidden_sizes: [64, 64]
+  activation: "tanh"
+  seeds: [1]
+
+# Environments to benchmark
+environments:
+  - id: "CartPole-v1"
+    max_timesteps: 500
+    solved_threshold: 475.0
+  - id: "Acrobot-v1"
+    max_timesteps: 500
+    solved_threshold: -100.0
+
+# Algorithms to compare
+algorithms:
+  - "hapg"
+  - "hapg_baseline"
+
+# Return normalization options
+normalize_returns:
+  - true
+  - false
+
+# Output settings
+output:
+  plot_file: "hapg_vs_baseline_benchmark.png"
+  data_file: "hapg_vs_baseline_results.npz"
+  title: "HAPG vs. Baseline (H=0) | Single-Loop Normalized Update (B=128, LR=0.02)"

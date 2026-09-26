@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Experiment artifacts & logs
+runs/
+**/data/
+*.data
+*.npz
+*.png
+!acrobot_16seeds_relu_vs_tanh_benchmark.png
+
+# Jupyter Notebook checkpoints & scratchpads
+.ipynb_checkpoints/
+scratchpad.ipynb
+
+# Local experiment runners & unpushed optimizers
+deep_jax/baseline*
+*baseline*
+deep_jax/hapg.py
+deep_jax/krylov_crpn.py
+deep_jax/optimizers/hapg.py
+deep_jax/optimizers/krylov_crpn.py
+deep_jax/run_*.py
+run_*.py
+run_*.sh
+deep_jax/envs/
+envs/
+*.json
+!pyrightconfig.json
+!pyrefly.toml
+
+# Research markdown notes
+deep_jax/*.md
+*.md
+!README.md
+
+# Auxiliary files & notes
+deep/tutorials/
+deep_jax/tutorials/
+deep_jax/tests/
+plot_learning_curves.py
+generate_notebooks.py
+
+# IDE & Editor local configs
+.vscode/
+pyrightconfig.json
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         command = [
             'python',
-            f'deep/{ALGO}.py',
+            f'deep_torch/{ALGO}.py',
             '--exp-name', f'{ALGO.upper()}{s + 1}_DEEP',
             '--env-seed', '-1',
             '--save', 'False',  # change to True if you want to save simulation data.

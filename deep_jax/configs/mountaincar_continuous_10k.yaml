@@ -1,0 +1,37 @@
+# Experiment Configuration: MountainCarContinuous-v0 (Alpha = 10k)
+# Comparing ACRPN, ACRPN+Momentum, Baseline (H=0), HAPG, and HAPG Baseline
+
+# Global Settings
+settings:
+  batch_size: 128
+  alpha: 10000.0
+  lr: 0.02
+  num_updates: 350
+  discount_factor: 0.99
+  hidden_sizes: [64, 64]
+  activation: "tanh"
+  seeds: [1]
+
+# Environment settings
+environments:
+  - id: "MountainCarContinuous-v0"
+    max_timesteps: 999
+    solved_threshold: 90.0
+
+# Algorithms to benchmark
+algorithms:
+  - "acrpn"
+  - "acrpn_momentum"
+  - "baseline"
+  - "hapg"
+  - "hapg_baseline"
+
+# Return normalization
+normalize_returns:
+  - true
+
+# Output settings
+output:
+  plot_file: "mountaincar_continuous_10k_benchmark.png"
+  data_file: "mountaincar_continuous_10k_results.npz"
+  title: "MountainCarContinuous-v0 Benchmark (Alpha=10k) | ACRPN vs. Momentum vs. HAPG vs. Baseline"

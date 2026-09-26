@@ -1,0 +1,40 @@
+# Experiment Configuration: All 4 MinAtar Environments with Flattened MLP (128, 128)
+# Baseline (H=0) vs. ACRPN (H) across Norm=True vs. False
+
+# Global Settings
+settings:
+  batch_size: 128
+  alpha: 5000.0
+  num_updates: 500
+  discount_factor: 0.99
+  policy_type: "mlp"
+  hidden_sizes: [128, 128]
+  activation: "relu"
+  seeds: [1]
+
+# Environments to benchmark (All 4 MinAtar games)
+environments:
+  - id: "Breakout-MinAtar"
+    max_timesteps: 500
+  - id: "SpaceInvaders-MinAtar"
+    max_timesteps: 500
+  - id: "Asterix-MinAtar"
+    max_timesteps: 500
+  - id: "Freeway-MinAtar"
+    max_timesteps: 500
+
+# Algorithms to compare
+algorithms:
+  - "baseline"
+  - "acrpn"
+
+# Return normalization options
+normalize_returns:
+  - true
+  - false
+
+# Output settings
+output:
+  plot_file: "minatar_all_mlp_benchmark.png"
+  data_file: "minatar_all_mlp_results.npz"
+  title: "All MinAtar Environments | Flattened MLP (128, 128) | Baseline vs ACRPN (B=128, Alpha=5000)"

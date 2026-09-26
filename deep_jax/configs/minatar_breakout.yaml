@@ -1,0 +1,32 @@
+# Experiment Configuration: Breakout-MinAtar
+# Baseline (H=0) vs. ACRPN (H) with ConvNet Policy
+
+# Global Settings
+settings:
+  batch_size: 64
+  alpha: 1000.0
+  num_updates: 500
+  discount_factor: 0.99
+  activation: "relu"
+  seeds: [1]
+
+# Environments to benchmark
+environments:
+  - id: "Breakout-MinAtar"
+    max_timesteps: 500
+
+# Algorithms to compare
+algorithms:
+  - "baseline"
+  - "acrpn"
+
+# Return normalization options
+normalize_returns:
+  - true
+  - false
+
+# Output settings
+output:
+  plot_file: "minatar_breakout_benchmark.png"
+  data_file: "minatar_breakout_results.npz"
+  title: "Breakout-MinAtar | ConvNet Policy | Baseline vs. ACRPN (Norm=True vs False)"
